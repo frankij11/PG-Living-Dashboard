@@ -25,7 +25,7 @@ rehab_costs$Month = format(rehab_costs$Date, "%m")
 
 
 basic_sum = summarise(group_by(rehab_costs, Property),Total = sum(Amount),  Start_Date = min(Date), End_Date=max(Date) )
-basic_sum$Duration = round(difftime(basic_sum$End_Date, basic_sum$Start_Date, units="weeks"),2)
+basic_sum$Duration = round(difftime(basic_sum$End_Date, basic_sum$Start_Date, units="weeks")/4,2)
 #basic_sum$Total = scales::dollar(basic_sum$Total)
 
 filt_sum <- filter(basic_sum, End_Date > "2018-01-01")
