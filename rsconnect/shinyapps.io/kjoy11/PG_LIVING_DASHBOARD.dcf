@@ -1,0 +1,13 @@
+name: PG_LIVING_DASHBOARD
+title: PG_LIVING_DASHBOARD
+username:
+account: kjoy11
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1008599
+bundleId: 2202920
+url: https://kjoy11.shinyapps.io/PG_LIVING_DASHBOARD/
+when: 1562338093.22647
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data_analysis.R
