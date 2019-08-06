@@ -2,7 +2,7 @@ library(shiny)
 library(shinydashboard)
 library(ggmap)
 library(ggplot2)
-
+library(dplyr)
 
 source("sdat.R")
 source("rei.R")
@@ -41,7 +41,8 @@ comp_ui = function(){
                 )
                 
               ),
-              
+
+              fluidRow(dataTableOutput("dt_comp_summary")),
               fluidRow(plotOutput("plt_comps")),
               fluidRow(dataTableOutput("dt_comps"))
               
@@ -60,14 +61,16 @@ comp_serv = function(input, output, session){
   #output$dt_comps = renderDataTable({mtcars})
   #input$btn_search
   observeEvent(input$txt_address, {
-    address =  get_address(input$txt_address)
+    try({
+      address =  get_address(input$txt_address)
     addresses = list_addresses(address)
     updateSelectInput(session, "sel_address", "Choose Address", choices=addresses )
+    })
   })
   
-  #
-  observeEvent(input$btn_comp, {
-    address =  get_address(input$sel_address)
+  #btn_comp
+  observeEvent(input$sel_address, {
+    try({address =  get_address(input$sel_address)
     #print(address$results[[1]])
     
     lat = address$results[[1]]$geometry$location$lat
@@ -78,12 +81,18 @@ comp_serv = function(input, output, session){
     print(w)
     df = sdat_query(where=w)
     head(df)
-    #df = filter(df, )
+    df = filter(df, land_use =="Residential (R)" )
+    df = filter(df, date2> "2018-01-01")
+    df$price = as.numeric(df$price)
+    df$living_area = as.numeric(df$living_area)
+    df$year_built = as.numeric(df$year_built)
+    sum_table = do.call(cbind, lapply(df[c("price", "living_area", "year_built")], summary))
     #output$plt_comps = renderPlot(ggplot(df, aes(living_area, price)+geom_point() ))
+    output$dt_comp_summary = renderDataTable({as.data.frame(unclass(summary(df[c("price", "living_area")])))})
     output$plt_comps = renderPlot(plot(df$living_area, df$price))
     
     output$dt_comps = renderDataTable({df})
-    
+    })
     
   })
   
