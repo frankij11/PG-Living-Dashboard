@@ -13,7 +13,8 @@ rehab_link ="https://www.dropbox.com/s/awyvkupytv6acve/2014%20Property%20Cost%20
 
 
 #Download data and read into R
-download.file(rehab_link, "rehab.xlsx")
+
+if(file.info("rehab.xlsx")$ctime <= Sys.Date()-1){download.file(rehab_link, "rehab.xlsx")}
 rehab_costs = read_excel("rehab.xlsx", sheet= "Total Expense", col_types="text")
 
 #Clean Data

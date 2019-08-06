@@ -35,10 +35,12 @@ select_statement = gsub("  ", "",select_statement)
 
 
 where_comps = function(lat, lon, miles){ 
+  miles = miles/0.000621371 #convert to meters
   w = sprintf(" WHERE 
-        (sales_segment_1_consideration_mdp_field_considr1_sdat_field_90 - sales_segment_2_consideration_sdat_field_110 > 50000) AND 
-        sales_segment_1_consideration_mdp_field_considr1_sdat_field_90 > 0 AND
-        sales_segment_2_consideration_sdat_field_110 > 0 AND
+        
+        (sales_segment_1_consideration_mdp_field_considr1_sdat_field_90 - sales_segment_2_consideration_sdat_field_110) > 50000 AND 
+        sales_segment_1_consideration_mdp_field_considr1_sdat_field_90 > 0 AND 
+        sales_segment_2_consideration_sdat_field_110 > 0 AND 
         within_circle(latitude_longitude, %f, %f, %f)", lat, lon, miles)
   w = gsub("[\r\n]", "",w)
   w = gsub("  ", "",w)
@@ -60,11 +62,12 @@ where_meta = function(props){
   return(w)
 }
 
-sdat_query = function(api=api_csv, select=select_statement, where){
+sdat_query = function(api=api_csv, select=select_statement, where,return_page=0){
   query = paste0("$query= ", select, where)
   full_url = paste0(api, query)
   full_url = URLencode(full_url)
   page = GET(full_url)
+  if(return_page>0){return(page)}
   if(status_code(page)==200){
     frame = suppressWarnings(content(page))
     return(frame)
