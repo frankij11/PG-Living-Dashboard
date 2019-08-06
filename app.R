@@ -36,8 +36,9 @@ ui <- dashboardPage(
       sidebarMenu(
          menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
          menuItem("Current Properties", tabName="current_props", icon = icon("home")),
-         menuItem("Potential Properties",tabName="potential_props", icon = icon("dollar")), 
-         menuItem("Deal Calculator", tabName = "deal_calc",
+         menuItem("Potential Properties",tabName="potential_props", icon = icon("dollar")),
+         menuItem("Deal Calculator", tabName = "deal_calc"),
+         menuItem("Quick Calculator", 
                   deal_calc2_ui())
       )
    ),
