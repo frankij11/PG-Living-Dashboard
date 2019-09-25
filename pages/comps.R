@@ -36,6 +36,10 @@ comp_ui = function(){
                 column(2, actionButton("btn_search","Find Address" ))
               ),
               fluidRow(
+                column(4,numericInput("num_dist", "Search Radius", 0.5)),
+                column(2, actionButton("btn_search","Find Address" ))
+              ),
+              fluidRow(
                 column(4,selectInput("sel_address", "Choose Address", list(), multiple = FALSE),
                        column(2, actionButton("btn_comp","Find Comps" ))
                 )
@@ -69,7 +73,7 @@ comp_serv = function(input, output, session){
   })
   
   #btn_comp
-  observeEvent(input$sel_address, {
+  observeEvent(c(input$sel_address, input$num_dist), {
     try({address =  get_address(input$sel_address)
     #print(address$results[[1]])
     
@@ -77,7 +81,7 @@ comp_serv = function(input, output, session){
     lon = address$results[[1]]$geometry$location$lng
     print(lat)
     print(lon)
-    w = where_comps(lat, lon, .5)
+    w = where_comps(lat, lon, input$num_dist)
     print(w)
     df = sdat_query(where=w)
     head(df)
@@ -95,9 +99,7 @@ comp_serv = function(input, output, session){
     })
     
   })
-  
-  
-  
+
 }
 
 
