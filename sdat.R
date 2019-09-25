@@ -51,6 +51,7 @@ where_comps = function(lat, lon, miles){
 where_meta = function(props){
   props = paste0("'", sapply(props, trimws), "'")
   props_str = paste0(props, collapse = ",")
+  props_str = toupper(props_str)
   props_str = str_replace_all(props_str,"STREET", "ST")
   props_str = str_replace_all(props_str,"AVENUE", "AVE")
   props_str = str_replace_all(props_str,"DRIVE", "DR")
