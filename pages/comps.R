@@ -2,8 +2,11 @@ library(shiny)
 library(shinydashboard)
 library(ggmap)
 library(ggplot2)
+library(gridExtra)
+library(grid)
 library(dplyr)
 library(DT)
+library(leaflet)
 source("sdat.R")
 source("rei.R")
 
@@ -32,20 +35,16 @@ comp_ui = function(){
   
   page =  box(title="Find Comparable Houses", status="primary", width=12,
               fluidRow(
-                column(6,textInput("txt_address", "Search Address", "1303 Alberta Dr"))
-              ),
-              fluidRow(
-                column(6,numericInput("num_dist", "Search Radius", 0.5))
-              ),
-              fluidRow(
-                column(6,selectInput("sel_address", "Choose Address", list(), multiple = FALSE)
-                )
-                
-              ),
-
+                column(6,
+                  fluidRow(textInput("txt_address", "Search Address", "1303 Alberta Dr District Heights")),
+                  fluidRow(numericInput("num_dist", "Search Radius", 0.5)),
+                  fluidRow(selectInput("sel_address", "Choose Address", list(), multiple = FALSE))
+                    
+                  )),
               fluidRow(dataTableOutput("dt_prop_summary")),
               fluidRow(dataTableOutput("dt_comp_summary")),
               fluidRow(plotOutput("plt_comps")),
+              fluidRow(leafletOutput('map_comps')),
               fluidRow(dataTableOutput("dt_comps"))
               
   )
@@ -80,11 +79,16 @@ comp_serv = function(input, output, session){
     print(lat)
     print(lon)
     w = where_comps(lat, lon, input$num_dist)
-    print(w)
+    w = paste(w,
+              "AND",
+              "sales_segment_1_transfer_date_yyyy_mm_dd_mdp_field_tradate_sdat_field_89 > '2012%'",
+              
+              "LIMIT 50000")
+    #print(w)
     df = sdat_query(where=w)
     head(df)
     df = filter(df, land_use =="Residential (R)" )
-    df = filter(df, date2> "2018-01-01")
+    df = filter(df, date2> "2018-01-01", price2 > 10000, living_area >0)
     df$price = as.numeric(df$price)
     df$living_area = as.numeric(df$living_area)
     df$year_built = as.numeric(df$year_built)
@@ -103,25 +107,66 @@ comp_serv = function(input, output, session){
     df_prop$year_built = as.numeric(df_prop$year_built)
     
     #Render Data
-    output$dt_comp_summary = renderDataTable({as.data.frame(unclass(summary(df[c("price", "living_area")])))})
-    output$plt_comps = renderPlot({
-      
-      plot(df$living_area, df$price, col = df$bld_code)
-      legend("topright", legend = unique(df$bld_code),col=1:length(df$bld_code),pch=1)
-      abline(v=df_prop$living_area[[1]], col = "blue", lty=2)
-      abline(h=median(df$price, col = "blue", lty=2))
-      abline(lm(df$price ~ df$living_area), col = "black", lty=2)
-      
+    output$dt_comp_summary = renderDataTable({
+      datatable(
+        df %>% 
+          select(price, living_area) %>% 
+          gather() %>% 
+          group_by(key) %>% 
+          summarise(
+            min= min(value) %>% round() %>% format(big.mark=","),
+            median= median(value) %>% round() %>% format(big.mark=","),
+            mean= mean(value) %>% round() %>% format(big.mark=","),
+            max = max(value) %>% round() %>% format(big.mark=",")
+          ) %>%
+          arrange(-desc(key)) %>%
+          t()
+        , options = list(dom="t"))
       })
     
     
+    output$plt_comps = renderPlot({
+      show_grid <- F
+      g <- ggplot(df, aes(x=living_area, y=price / 1000, color = bld_code)) + 
+        geom_point() +
+        geom_smooth(method=lm) +
+        geom_vline(xintercept = df_prop$living_area[[1]], linetype="dashed", color="blue")+
+        labs(title=input$sel_address,subtitle="Comparable Houses", x = "Sqft", y = "Price $K")
+     
+     if(show_grid){g<- g + facet_grid(df$bld_code)}
+
+      g
+      # plot(df$living_area, df$price, col = df$bld_code)
+      # legend("topright", legend = unique(df$bld_code),col=1:length(df$bld_code),pch=1)
+      # abline(v=df_prop$living_area[[1]], col = "blue", lty=2)
+      # abline(h=median(df$price, col = "blue", lty=2))
+      # abline(lm(df$price ~ df$living_area), col = "black", lty=2)
+      
+      })
+    
+    output$map_comps = renderLeaflet({
+      leaflet() %>%
+        addTiles() %>%
+        addAwesomeMarkers(lat=df_prop$lat,
+                   lng=df_prop$lon,
+                   icon=awesomeIcons(markerColor = "green"),
+                   popup=df_prop$address[[1]]
+                   ) %>%
+        addMarkers(lat=df$lat,
+                   lng = df$lon, 
+                   popup = paste(sep="<br/>",
+                                 paste0("<b>",df$address,"<b>"),
+                                 paste("Price:",format(df$price, big.mark = ",")),
+                                 paste("Sqft:", format(df$living_area, big.mark=",")))
+                  )
+    })
     
     output$dt_comps = renderDataTable({
       
       datatable(df,options = list(scrollX =T))
       })
     output$dt_prop_summary = renderDataTable({
-      datatable(df_prop, options = list(scrollX =T))
+      datatable(df_prop[, c("address","land_use", "bld_code", "neighborhood", "living_area", "year_built", "tax_assessment")], options = list(dom="t",scrollX=T))
     })
         
     

@@ -2,9 +2,14 @@ library("rvest")
 library("tidyverse")
 auction_hw = function(){
   url ='https://www.hwestauctions.com/assets/php4/tabbedWebsite.php'
-  frame <- url %>%
+  url2 = 'https://www.hwestauctions.com/schedule.v4.php'
+  x_path<-'/html/body/div[2]/div[3]/table/tbody/tr/td[2]/div/table/tbody/tr/td[1]/table'
+  #/html/body/div[2]/div[3]/table/tbody/tr/td[2]/div/table/tbody/tr/td[1]/table/tbody
+  x_path2= '/html/body/div[2]/div[3]/table/tbody/tr/td[2]/div/table'
+  
+  frame <- url2 %>%
     read_html() %>%
-    html_nodes(xpath='/html/body/table') %>%
+    html_nodes(xpath=x_path2) %>%
     html_table()
   frame <- frame[[1]]
   names(frame) = frame[1,]
