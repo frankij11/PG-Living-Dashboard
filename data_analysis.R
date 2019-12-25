@@ -2,8 +2,9 @@ library(readxl)
 library(dplyr)
 #library(sclaes)
 library(ggplot2)
-
-rehab_link ="https://www.dropbox.com/s/awyvkupytv6acve/2014%20Property%20Cost%20Breakdown%20NEW.xlsm?dl=1"
+#old link
+#rehab_link ="https://www.dropbox.com/s/awyvkupytv6acve/2014%20Property%20Cost%20Breakdown%20NEW.xlsm?dl=1"
+rehab_link ="https://www.dropbox.com/s/s62mfmriw6ms3pk/2014%20Property%20Cost%20Breakdown%20NEW.xlsm?dl=1"
 
 # rehab_costs <- read_excel("rehab_costs.xlsx", 
 #                           sheet = "Data", col_types = c("text", 

@@ -11,6 +11,8 @@ source("sdat.R")
 source("rei.R")
 
 
+#models <- readRDS("../analysis/models_small.rds")
+
 API_KEY = 'AIzaSyBBTXVoEURxl8IGpTF0vfOp96LJgpKdSZo'
 register_google(API_KEY)
 
@@ -95,8 +97,8 @@ comp_serv = function(input, output, session){
     df$bld_code = as.factor(df$bld_code)
     sum_table = do.call(cbind, lapply(df[c("price", "living_area", "year_built")], summary))
     #output$plt_comps = renderPlot(ggplot(df, aes(living_area, price)+geom_point() ))
-    
-    
+    mod <- lm(price~living_area + bld_code, data =df)
+    df$Estimate <- predict(mod, df)
     #prop_meta_where = where_comps(lat, lon, .001)
     #prop_meta_where = gsub("> 50000 | > 0", " >= 0 ", prop_meta_where)
     #df_prop <- sdat_query(where = prop_meta_where)
@@ -105,7 +107,10 @@ comp_serv = function(input, output, session){
     df_prop$price = as.numeric(df_prop$price)
     df_prop$living_area = as.numeric(df_prop$living_area)
     df_prop$year_built = as.numeric(df_prop$year_built)
-    
+    df_prop$Estimate <- predict(mod, df_prop)
+#add all models
+    #   df_prop <- cbind(df_prop, data.frame(predict(models, df_prop)))
+    print(predict(mod,df_prop))
     #Render Data
     output$dt_comp_summary = renderDataTable({
       datatable(
@@ -166,7 +171,7 @@ comp_serv = function(input, output, session){
       datatable(df,options = list(scrollX =T))
       })
     output$dt_prop_summary = renderDataTable({
-      datatable(df_prop[, c("address","land_use", "bld_code", "neighborhood", "living_area", "year_built", "tax_assessment")], options = list(dom="t",scrollX=T))
+      datatable(df_prop[, c("address","land_use", "bld_code", "neighborhood", "living_area", "year_built", "tax_assessment", "Estimate") ]%>% t(), options = list(dom="t",scrollX=T))
     })
         
     

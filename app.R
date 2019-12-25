@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 source("rei.R")
-try(auction_props <- auction_hw())
+auction_props <- auction_hw()
 my_offer = best_offer(290, 55, 25)
 print(my_offer)
 
