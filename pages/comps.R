@@ -57,7 +57,7 @@ comp_ui = function(){
 
 
 comp_serv = function(input, output, session){
-
+  
   #create reactive variable
   values <- reactiveValues(address_short_name = NULL, lat = NULL, lon = NULL)
   
