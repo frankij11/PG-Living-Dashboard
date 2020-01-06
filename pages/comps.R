@@ -40,6 +40,7 @@ comp_ui = function(){
                 column(6,
                   fluidRow(textInput("txt_address", "Search Address", "1303 Alberta Dr District Heights"), 
                            actionButton("btn_search", "search", icon=icon("search"))),
+                  fluidRow(checkboxInput("chk_reno", "Show Renovations Only?", value=T)),
                   fluidRow(numericInput("num_dist", "Search Radius", 0.5)),
                   fluidRow(selectInput("sel_address", "Choose Address", list(), multiple = FALSE))
                     
@@ -192,10 +193,10 @@ comp_serv = function(input, output, session){
   
   comps <- reactive({
     print("comps reactive")
-    reno = F
+    #reno = F
     df = sdat_query(where=where_comps(lat=df_prop()$lat[[1]], lon=df_prop()$lon[[1]], miles=input$num_dist))
     df = filter(df, land_use == df_prop()$land_use[[1]])
-    if(reno){df <- filter(df, renovated == T)}
+    if(input$chk_reno){df <- filter(df, renovated == T)}
     df
   })
   
