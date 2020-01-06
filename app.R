@@ -26,65 +26,34 @@ library(DT)
 
 
 # Define UI for application that draws a histogram
-ui <- dashboardPage(
+ui <- navbarPage(
    # Application title
-   dashboardHeader(title = "PG Living Dashboard"),
+   title = "PG Living Dashboard",
+   id = "nav",
    
    # Sidebar with a slider input for number of bins
-   dashboardSidebar(
-      sidebarMenu(
-         menuItem(
-            "Dashboard",
-            tabName = "dashboard",
-            icon = icon("dashboard")
-         ),
-         menuItem(
-            "Current Properties",
-            tabName = "current_props",
-            icon = icon("home")
-         ),
-         menuItem(
-            "Potential Properties",
-            tabName = "potential_props",
-            icon = icon("dollar")
-         ),
-         menuItem("Deal Calculator", tabName = "deal_calc"),
-         menuItem("Quick Calculator",
-                  deal_calc2_ui())
-      )
-   ),
    
-   dashboardBody(tabItems(
-      dashboard_ui(),
-      
-      deal_calc_ui(),
-      
-      
-      tabItem(tabName = "potential_props",
-              tabBox(width=12,
-                 tabPanel("comps",
-                            fluidRow( comp_ui())
-                          ),
-                 tabPanel(
-                    "Auction",
-                          fluidRow(
-                             box(
-                                dataTableOutput("auction_frame"),
-                                
-                                title = "List of Auction Properties",
-                                solidHeader = TRUE,
-                                collapsible = TRUE,
-                                width = 12
-                              )
-                          # Show a plot of the generated distribution
-                          
-                        )
-                  )
-              )
-        )
-     )
+   tabPanel("Comps",comp_ui()),absolutePanel(id = "controls", class = "panel panel-default", fixed=T,
+                                             draggable = TRUE, top = 60, left = "auto", right = 20, bottom = "auto",
+                                             width = 330, height = "auto",
+                                             deal_calc2_ui()),
+   tabPanel("Dashboard", dashboard_ui()),
+   tabPanel("Best offer Calculator",deal_calc_ui()),
+   tabPanel("Auction List",
+            fluidRow(
+              box(
+                 dataTableOutput("auction_frame"),
+                 
+                 title = "List of Auction Properties",
+                 solidHeader = TRUE,
+                 collapsible = TRUE,
+                 width = 12
+               )
+           # Show a plot of the generated distribution
+           
+         )
    )
-      
+   
 )
 
 

@@ -52,16 +52,17 @@ page =column(width=12,align="left",
   valueBoxOutput("num_best_offer", width = 12),
   #numericInput("num_best_offer",NULL, value=NULL ),
   column(12, h4(strong("Inputs"))),
-  numericInput("num_sales_price","ARV", min = 1000, max=1000000, value=300000, step=5000),
-  numericInput("num_profit", "Profit $", min=0, max=200000,value=25000, step=1000),
-  numericInput("num_cash_at_closing", "Cash %", min=0, max=1,value=.12),
-  numericInput("num_rehab", "Rehab $", min=0, max=200000,value=65000, step=1000),
-  numericInput("num_project_days", "Days",min= 0, max=365, value=180),
-  numericInput("num_interest_rate","APY %", min = 0, max=.25, value=.08),
-  numericInput("num_selling_cost", "Sell %", min = 0, max=.20, value=.08),
-  numericInput("num_closing_cost","Buy %",min= 0, max=.20,value= .06)
+  box(collapsible = T,
+    numericInput("num_sales_price","ARV", min = 1000, max=1000000, value=300000, step=5000),
+    numericInput("num_profit", "Profit $", min=0, max=200000,value=25000, step=1000),
+    numericInput("num_cash_at_closing", "Cash %", min=0, max=1,value=.12),
+    numericInput("num_rehab", "Rehab $", min=0, max=200000,value=65000, step=1000),
+    numericInput("num_project_days", "Days",min= 0, max=365, value=180),
+    numericInput("num_interest_rate","APY %", min = 0, max=.25, value=.08),
+    numericInput("num_selling_cost", "Sell %", min = 0, max=.20, value=.08),
+    numericInput("num_closing_cost","Buy %",min= 0, max=.20,value= .06)
+  )
 )
-
 return(page)
 }
 
