@@ -132,7 +132,7 @@ comp_serv = function(input, output, session){
     
   #plot comps
   output$plt_comps = renderPlot({
-    show_grid <- T
+    show_grid <- F
     comps <- data.frame(comps())
     g <- ggplot(comps, aes(x=living_area, y=price / 1000, color = stories)) + 
       geom_point() +
