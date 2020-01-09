@@ -26,17 +26,22 @@ library(DT)
 
 
 # Define UI for application that draws a histogram
-ui <- navbarPage(
+ui <- dashboardPage(
    # Application title
    title = "PG Living Dashboard",
-   id = "nav",
+   #id = "nav",
    
    # Sidebar with a slider input for number of bins
-   
-   tabPanel("Comps",comp_ui()),absolutePanel(id = "controls", class = "panel panel-default", fixed=T,
-                                             draggable = TRUE, top = 60, left = "auto", right = 20, bottom = "auto",
-                                             width = 330, height = "auto",
-                                             deal_calc2_ui()),
+   # absolutePanel(id = "controls", class = "panel panel-default", fixed=T,
+   #               draggable = TRUE, top = 60, left = "auto", right = 20, bottom = "auto",
+   #               width = 330, height = "auto",
+   #               deal_calc2_ui()
+   dashboardHeader(disable=TRUE),
+   dashboardSidebar(disable=TRUE),
+   dashboardBody(
+   deal_calc2_ui(),
+   tabBox(width=12,
+   tabPanel("Comps",comp_ui()),
    tabPanel("Dashboard", dashboard_ui()),
    tabPanel("Best offer Calculator",deal_calc_ui()),
    tabPanel("Auction List",
@@ -53,7 +58,8 @@ ui <- navbarPage(
            
          )
    )
-   
+   )
+   )
 )
 
 

@@ -35,22 +35,29 @@ list_addresses = function(address){
 
 comp_ui = function(){
   
-  page =  box(title="Find Comparable Houses", status="primary", width=12,
-              fluidRow(
-                column(6,
-                  fluidRow(textInput("txt_address", "Search Address", "1303 Alberta Dr District Heights"), 
-                           actionButton("btn_search", "search", icon=icon("search"))),
-                  fluidRow(checkboxInput("chk_reno", "Show Renovations Only?", value=T)),
-                  fluidRow(numericInput("num_dist", "Search Radius", 0.5)),
-                  fluidRow(selectInput("sel_address", "Choose Address", list(), multiple = FALSE))
-                    
-                  )),
-              fluidRow(dataTableOutput("dt_prop_summary")),
-              fluidRow(dataTableOutput("dt_comp_summary")),
-              fluidRow(plotOutput("plt_comps")),
-              fluidRow(leafletOutput('map_props')),
-              fluidRow(dataTableOutput("dt_comps"))
-              
+  page =  box(
+    title = "Find Comparable Houses",
+    status = "primary",
+    width = 12,
+    fluidRow(
+        fluidRow(
+          textInput("txt_address","Search Address","1303 Alberta Dr District Heights") %>% column(width = 3),
+          numericInput("num_dist", "Search Radius", 0.5) %>% column(width =3),
+          numericInput("num_year", "Search Year", 0.5) %>% column(width =3),
+          checkboxInput("chk_reno", "Show Renovations Only?", value =T) %>% column(width = 3),
+          actionButton("btn_search", "search", icon = icon("search"))
+        ),
+
+        fluidRow(
+          selectInput("sel_address", "Choose Address", list(), multiple = FALSE)
+        )
+      ),
+    fluidRow(dataTableOutput("dt_prop_summary")),
+    fluidRow(dataTableOutput("dt_comp_summary")),
+    fluidRow(column(6, leafletOutput('map_props')),
+             column(6, plotOutput("plt_comps"))),
+    fluidRow(dataTableOutput("dt_comps"))
+    
   )
   return(page)
   
