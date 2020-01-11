@@ -40,7 +40,7 @@ ui <- dashboardPage(
    dashboardSidebar(disable=TRUE),
    dashboardBody(
    deal_calc2_ui(),
-   tabBox(width=12,
+   tabsetPanel(
    tabPanel("Comps",comp_ui()),
    tabPanel("Dashboard", dashboard_ui()),
    tabPanel("Best offer Calculator",deal_calc_ui()),

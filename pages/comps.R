@@ -1,11 +1,13 @@
 library(shiny)
 library(shinydashboard)
 library(ggmap)
-library(ggplot2)
-library(gridExtra)
-library(grid)
+library(plotly)
+#library(ggplot2)
+#library(gridExtra)
+#library(grid)
 library(dplyr)
 library(DT)
+library(crosstalk)
 library(leaflet)
 source("sdat.R")
 source("rei.R")
@@ -35,27 +37,37 @@ list_addresses = function(address){
 
 comp_ui = function(){
   
-  page =  box(
+  page =box(
     title = "Find Comparable Houses",
     status = "primary",
-    width = 12,
-    fluidRow(
+   width = 12,
+
         fluidRow(
           textInput("txt_address","Search Address","1303 Alberta Dr District Heights") %>% column(width = 3),
           numericInput("num_dist", "Search Radius", 0.5) %>% column(width =3),
-          numericInput("num_year", "Search Year", 0.5) %>% column(width =3),
-          checkboxInput("chk_reno", "Show Renovations Only?", value =T) %>% column(width = 3),
-          actionButton("btn_search", "search", icon = icon("search"))
+          numericInput("num_year", "Search Year",2019, step=1, min=0, max=2020) %>% column(width =3)
+        ),
+        fluidRow(
+          actionButton("btn_search", "search", icon = icon("search")) %>% column(width = 3),
+          checkboxInput("chk_reno", "Show Renovations Only?", value =T) %>% column(width = 3)
+          
         ),
 
-        fluidRow(
-          selectInput("sel_address", "Choose Address", list(), multiple = FALSE)
-        )
-      ),
-    fluidRow(dataTableOutput("dt_prop_summary")),
-    fluidRow(dataTableOutput("dt_comp_summary")),
-    fluidRow(column(6, leafletOutput('map_props')),
-             column(6, plotOutput("plt_comps"))),
+        box(width=12, title="Predicted Price", collapsible = T, collapsed = F,
+            
+            fluidRow(
+              textOutput("txt_address"),
+              DTOutput("dt_predict", width = "50%")
+            )
+          
+        ),
+    fluidRow(
+      dataTableOutput("dt_prop_summary") %>% column(width=12)
+    ),
+    fluidRow(
+            leafletOutput('map_props') %>% column(width=6),
+            plotlyOutput("plt_comps") %>% column(width=6)
+            ),
     fluidRow(dataTableOutput("dt_comps"))
     
   )
@@ -66,9 +78,28 @@ comp_ui = function(){
 
 comp_serv = function(input, output, session){
   
-  #create reactive variable
-  values <- reactiveValues(address_short_name = NULL, lat = NULL, lon = NULL)
+
   
+  #create reactive variable
+  values <- reactiveValues(address_short_name = NULL, lat = NULL, lon = NULL, meta = NULL, all_comps = NULL)
+
+  output$dt_predict <- renderDT({
+    meta <-df_prop()
+    comps <- comps()
+    mods <- sdat_models(meta, comps)
+    dt <- sdat_predict(mods, meta)
+    dt$Estimate <- round(dt$Estimate / 1000)
+    updateNumericInput(session,
+                       inputId = "num_sales_price",
+                       label = "ARV",
+                       min = 1000,
+                       max = 1000000,
+                       value = dt$Estimate[2:nrow(dt)] %>% mean() * 1000 %>% round(digits = -3),
+                       step = 5000
+    ) 
+    dt
+  })  
+    
   #create map
   output$map_props = renderLeaflet({
     map <- leaflet() %>% 
@@ -76,40 +107,24 @@ comp_serv = function(input, output, session){
       setView(lat = 38.9784,lng=-76.4922, zoom=12)
   })
   
-  #add property to map
-  observe({
-    try({
-      df_prop <- data.frame(df_prop())
-      if(!is.null(df_prop)){
-        leafletProxy("map_props") %>%
-          clearGroup("prop") %>%
-          setView(lat = df_prop$lat,lng=df_prop$lon, zoom=16) %>%
-          addAwesomeMarkers(group= "prop",
-                            lat=as.numeric(df_prop$lat),
-                            lng=as.numeric(df_prop$lon),
-                            icon=awesomeIcons(markerColor = "green"),
-                            popup=df_prop$address[[1]]
-          ) 
-      }
-    })
-  })
-    
   #add renovated comps to map
   observe({
     try({
       comps <- data.frame(comps())
-      comps <- filter(comps, renovated ==T)
+      comps_reno <- filter(comps, renovated == T)
       if(!is.null(comps)){
         
         leafletProxy("map_props") %>%
-          clearGroup("comps") %>%
-          addMarkers(group="comps",
-                     lat=comps$lat %>% as.numeric(),
-                     lng = comps$lon  %>% as.numeric(),
+          clearGroup("comps_reno") %>%
+          addAwesomeMarkers(group="comps_reno",
+                     lat=comps_reno$lat %>% as.numeric(),
+                     lng = comps_reno$lon  %>% as.numeric(),
+                     icon=awesomeIcons(markerColor = "green"),
+                     label = comps_reno$price / 1000 %>% round(0),
                      popup = paste(sep="<br/>",
-                                   paste0("<b>",comps$address,"<b>"),
-                                   paste("Price:",format(comps$price, big.mark = ",")),
-                                   paste("Sqft:", format(comps$living_area, big.mark=",")))
+                                   paste0("<b>",comps_reno$address,"<b>"),
+                                   paste("Price:",format(comps_reno$price, big.mark = ",")),
+                                   paste("Sqft:", format(comps_reno$living_area, big.mark=",")))
           )
       }
     })        
@@ -123,8 +138,8 @@ comp_serv = function(input, output, session){
       if(!is.null(comps)){
         
         leafletProxy("map_props") %>%
-          clearGroup("comps") %>%
-          addMarkers(group="comps",
+          clearGroup("comps_no_reno") %>%
+        addAwesomeMarkers(group="comps_no_reno",
                      lat=comps$lat %>% as.numeric(),
                      lng = comps$lon  %>% as.numeric(), 
                      icon=awesomeIcons(markerColor = "red"),
@@ -137,26 +152,60 @@ comp_serv = function(input, output, session){
     })        
   })
   
-    
+  #add property to map
+  observe({
+    try({
+      df_prop <- data.frame(df_prop())
+      if(!is.null(df_prop)){
+        leafletProxy("map_props") %>%
+          clearGroup("prop") %>%
+          setView(lat = df_prop$lat,lng=df_prop$lon, zoom=14) %>%
+          addAwesomeMarkers(group= "prop",
+                            lat=as.numeric(df_prop$lat),
+                            lng=as.numeric(df_prop$lon),
+                            icon=awesomeIcons(markerColor = "black"),
+                            popup=df_prop$address[[1]]
+          ) 
+      }
+    })
+  })
+  
+  
   #plot comps
-  output$plt_comps = renderPlot({
-    show_grid <- F
+  output$plt_comps = renderPlotly({
+    #show_grid <- F
+    
     comps <- data.frame(comps())
-    g <- ggplot(comps, aes(x=living_area, y=price / 1000, color = stories)) + 
-      geom_point() +
-      geom_smooth(method=lm) +
-      geom_vline(xintercept = df_prop()$living_area[[1]], linetype="dashed", color="blue")+
-      labs(title=input$sel_address,subtitle="Comparable Houses", x = "Sqft", y = "Price $K")
+    if(nrow(comps)>0){
+    #comps$ren_stories <- paste(comps$renovated, comps$stories)
+    p <- plot_ly(data = filter(comps, renovated ==TRUE) 
+                 ,x= ~living_area
+                 ,y= ~price / 1000
+                 ,text= ~paste(address, 
+                               '<br>Sold Date:', ymd(date),
+                               '<br>Year Built:', year_built)
+                 ,type ='scatter'
+                 ,mode='markers'
+                 ,color = I('green')
+                 ,name = "Renovated"
+                 ) %>%
+      add_trace(data=filter(comps, renovated ==FALSE)
+                ,x= ~living_area
+                ,y= ~price / 1000
+                ,text= ~paste(address, 
+                              '<br>Sold Date:', ymd(date),
+                              '<br>Year Built:', year_built)
+                ,color = I('red')
+                ,name = "Not Renovated"
+                ) %>%
+      add_segments(x = df_prop()$living_area[[1]], xend = df_prop()$living_area[[1]], y = round(min(comps$price)/1000 - 100, -2) , yend = round(max(comps$price)/1000 +100, -2), color=I('black'), name = "Property Sqft")
+      #geom_point() +
+      #geom_smooth(method=lm) +
+      #geom_vline(xintercept = df_prop()$living_area[[1]], linetype="dashed", color="blue")+
+      #labs(title=input$sel_address,subtitle="Comparable Houses", x = "Sqft", y = "Price $K")
+      #labs(title=values$full_address,subtitle="Comparable Houses", x = "Sqft", y = "Price $K")
     
-    if(show_grid){g<- g + facet_wrap(comps$renovated)}
-    
-    g
-    # plot(df$living_area, df$price, col = df$bld_code)
-    # legend("topright", legend = unique(df$bld_code),col=1:length(df$bld_code),pch=1)
-    # abline(v=df_prop$living_area[[1]], col = "blue", lty=2)
-    # abline(h=median(df$price, col = "blue", lty=2))
-    # abline(lm(df$price ~ df$living_area), col = "black", lty=2)
-    
+    }
   })
   
   
@@ -173,9 +222,13 @@ comp_serv = function(input, output, session){
       print(values$address_short_name)
       values$lat <- google_address$results[[1]]$geometry$location$lat
       values$lon <- google_address$results[[1]]$geometry$location$lng
+      values$meta <- sdat_query(where = where_meta(values$address_short_name))
+      values$full_address <- google_address$results[[1]]$formatted_address
+      values$all_comps <- sdat_query(where=where_comps(lat=df_prop()$lat[[1]], lon=df_prop()$lon[[1]], miles=input$num_dist, year=2014))
+      #values$predict.lm <- model.lm(values$all_comps)
+      #values$predict.rf <- model.rf(values$all_comps)
       
-      
-      updateSelectInput(session, "sel_address", "Choose Address", choices=addresses )
+      #updateSelectInput(session, "sel_address", "Choose Address", choices=addresses )
     })
   })
   
@@ -192,7 +245,7 @@ comp_serv = function(input, output, session){
   
   output$dt_prop_summary = renderDataTable({
     df_prop <- data.frame(df_prop())
-    datatable(df_prop, options=list(dom="t", scrollX=T))
+    datatable(df_prop %>% select(address,city,year_built,stories,living_area,acre), options=list(dom="t", scrollX=T))
     #datatable(df_prop %>% t(), options = list(dom="t",scrollY=T))
     #c("address","land_use", "stories","basement", "neighborhood", "living_area", "acres", "year_built", "tax_assessment", "Estimate")
   })
@@ -210,7 +263,7 @@ comp_serv = function(input, output, session){
   output$dt_comps = renderDataTable({
     print("rendering comps")
     #print(comps()[1,1:10])
-    datatable(comps(),options = list(scrollX =T))
+    datatable(comps(),options = list(scrollX =T, scrollY=T))
   })
   
 

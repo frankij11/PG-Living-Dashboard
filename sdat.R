@@ -1,8 +1,9 @@
 library(httr)
-library(RSocrata)
+#library(RSocrata)
 library(tidyverse)
 library(lubridate)
-library(stringr)
+#slibrary(stringr)
+library(caret)
 
 api_endpoint = "https://opendata.maryland.gov/resource/ed4q-f8tm.json?"
 api_csv = "https://opendata.maryland.gov/resource/ed4q-f8tm.csv?"
@@ -89,8 +90,8 @@ where_meta = function(props){
   return(w)
 }
 
-sdat_query = function(api=api_csv, select=select_statement, where,return_page=0){
-  query = paste0("$query= ", select, where)
+sdat_query = function(api=api_csv, select=select_statement, where,limit = 50000,return_page=0){
+  query = paste0("$query= ", select, where, " LIMIT ", limit)
   full_url = paste0(api, query)
   full_url = URLencode(full_url)
   page = GET(full_url)
@@ -100,8 +101,8 @@ sdat_query = function(api=api_csv, select=select_statement, where,return_page=0)
     
     #clean data
     try({
-      #frame <- filter(frame, land_use =="Residential (R)")
-      frame <- filter(frame, living_area >800)
+      frame$neighborhood <- frame$neighborhood %>% as.factor()
+      frame <- filter(frame, living_area >500)
       frame$price_delta <- (frame$price - frame$price2)
       frame$date_delta <- (ymd(frame$date) - ymd(frame$date2))/ 365
       frame$renovated <- frame$price_delta > 50000 & frame$date_delta <=1 & frame$price2 >10000
@@ -132,7 +133,25 @@ sdat_q=function(api=api_csv, q){
   }
   
 }
-
+sdat_get_meta <- function(df, col = "address"){
+  results <- NULL
+  for(i in 1:nrow(df)){
+    tmp_result <- sdat_query(where=where_meta(df[,col][i]))
+    print(tmp_result)
+    print(df[,col][i])
+    tmp_result$search_address <- df[,col][i] 
+    print(tmp_result)
+    if(is.null(results)){
+      results <- tmp_result
+    }else{
+      results <- rbind(results, tmp_result)
+    }
+  }
+  
+  
+  df <- left_join(df, results, by=c("address" = "search_address"))
+  return(df)
+}
 
 sdat_get_many_properties = function(addresses){
   n = length(addresses)
@@ -156,3 +175,64 @@ sdat_get_many_properties = function(addresses){
   return(result)
 }
 
+model.lm <- function(df, reno = T, dist = 1){
+  if(reno){df <- filter(df, renovated==T)}
+  
+  lm(price~living_area + stories + basement , data = df)
+}
+
+model.rf <- function(df){
+  #control <- trainControl(method='boot', 
+  #                        number=10, 
+  #                       repeats=3)
+  train(price~living_area + tax_assessment + owner_type + stories + renovated + year_built, data =df, method="rf")
+}
+
+#   if(values()$all_comps %>% !is.null()){
+
+
+
+sdat_models <- function(meta = NULL, comps = NULL, address = NULL){
+
+if(is.null(meta)){
+  meta = sdat_query(where=where_meta(address))
+  if(nrow(meta<1)){return(NULL)}
+}
+comps <- filter(comps, land_use =="Residential (R)" | land_use =="Town House (TH)" , price <1500000 )
+  
+comps_reno <- filter(comps, renovated ==T)
+mods <- list()
+try({
+mods$avg <- lm(price~1, data = comps_reno)
+mods$slr <- lm(price~living_area, data = comps_reno)
+mods$lm <- lm(price~living_area:basement, data = comps_reno)
+mods$lm2 <- lm(price~living_area:basement:stories, data = comps_reno)
+mods$lm3 <- lm(price~living_area:basement:stories:land_use, data = comps_reno)
+mods$lm4 <- lm(price~living_area:basement:stories:neighborhood:land_use, data = comps_reno)
+mods$rf <- train(price~living_area + basement + stories + renovated +land_use + tax_assessment, 
+                 data = comps,
+                 method="rf",
+                 ntree=50, 
+                 control = trainControl(number=1))
+
+})
+meta$renovated == T
+#mods$predict <- predict(mods, meta) %>% data.frame()
+return(mods)
+}
+
+sdat_predict <- function(models, meta, reno=T){
+  meta$renovated <- reno
+  df <- data.frame(Model = sapply(1:length(models), function(i) models[i] %>% names() %>% toupper())
+                   #,Equation = sapply(1:length(models), function(i) models[[i]]$call)
+                   )
+  df$Estimate <- sapply(1:length(models), 
+                        function(i) {
+                          r <- NULL
+                          try({r <- predict(models[[i]], meta)[[1]]})
+                          return(r)
+                        })
+  
+                  
+  return(df)
+}
