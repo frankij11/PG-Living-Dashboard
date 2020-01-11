@@ -136,20 +136,19 @@ sdat_q=function(api=api_csv, q){
 sdat_get_meta <- function(df, col = "address"){
   results <- NULL
   for(i in 1:nrow(df)){
+    tmp_result <- NULL
     tmp_result <- sdat_query(where=where_meta(df[,col][i]))
-    print(tmp_result)
-    print(df[,col][i])
-    tmp_result$search_address <- df[,col][i] 
-    print(tmp_result)
-    if(is.null(results)){
-      results <- tmp_result
-    }else{
-      results <- rbind(results, tmp_result)
+    if(!is.null(tmp_result)){
+      #tmp_result$search_address <- df[,col][i] 
+      if(is.null(results)){
+        results <- tmp_result
+      }else{
+        results <- rbind(results, tmp_result)
     }
   }
-  
-  
-  df <- left_join(df, results, by=c("address" = "search_address"))
+  }
+  df$search_address <- clean_addresses(df[,col])
+  df <- left_join(df, results, by=c("search_address" = "address"))
   return(df)
 }
 
