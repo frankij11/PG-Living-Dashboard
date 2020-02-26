@@ -202,17 +202,18 @@ comps <- filter(comps, land_use =="Residential (R)" | land_use =="Town House (TH
 comps_reno <- filter(comps, renovated ==T)
 mods <- list()
 try({
-mods$avg <- lm(price~1, data = comps_reno)
-mods$slr <- lm(price~living_area, data = comps_reno)
+mods$avg <- lm(price~basement, data = filter(comps, living_area > meta$living_area[[1]] -200,living_area > meta$living_area[[1]] +200) )
+mods$all <- lm(price~living_area:basement:renovated, data=comps)
+#mods$slr <- lm(price~living_area, data = comps_reno)
 mods$lm <- lm(price~living_area:basement, data = comps_reno)
 mods$lm2 <- lm(price~living_area:basement:stories, data = comps_reno)
-mods$lm3 <- lm(price~living_area:basement:stories:land_use, data = comps_reno)
-mods$lm4 <- lm(price~living_area:basement:stories:neighborhood:land_use, data = comps_reno)
-mods$rf <- train(price~living_area + basement + stories + renovated +land_use + tax_assessment, 
-                 data = comps,
-                 method="rf",
-                 ntree=50, 
-                 control = trainControl(number=1))
+mods$lm3 <- lm(price~living_area:basement:stories:land_use:renovated, data = comps)
+mods$lm4 <- lm(price~living_area:basement:stories:neighborhood:land_use:renovated, data = comps)
+#mods$rf <- train(price~living_area + basement + stories + renovated +land_use + tax_assessment, 
+#                 data = comps,
+#                 method="rf",
+#                 ntree=50, 
+#                 control = trainControl(number=1))
 
 })
 meta$renovated == T
@@ -235,3 +236,4 @@ sdat_predict <- function(models, meta, reno=T){
                   
   return(df)
 }
+

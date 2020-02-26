@@ -6,8 +6,13 @@ Created on Wed Jan 22 21:02:39 2020
 """
 
 import requests_html
+from bs4 import BeautifulSoup
 import pandas as pd
+import numpy as np
+import time
+from tqdm import tqdm
 
+import sdat
 
 
 def redfin(url=None):
@@ -42,6 +47,7 @@ def auction_hw():
     r.close()
     df = data[2]
     df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')', '')
+    df['source'] = url
     #pd.DataFrame()
     
     #for i in range(5):
@@ -51,18 +57,98 @@ def auction_hw():
 
     return df
 
+def auction_ac():
+    url ='https://realestate.alexcooper.com/foreclosures?limit=100&auction_county=Prince+George%27s+County'
+    session = requests_html.HTMLSession()
+    r = session.get(url)
+    r.html.render()
+    soup = BeautifulSoup(r.html.html, "html.parser")
+    dates_ = soup.find_all('div', attrs={"class": "full-date"})
+    dates = []
+    for row in dates_:
+        row = row.text.replace("\t", "").replace("|", "").replace("\n", " ")
+        dates.append(row) 
+    data = soup.find_all('div', attrs={"class": "foreclosure-lot"})
+    r.close()
+    res=[]
+    d = 0
+    prev_date =pd.to_datetime(0)
+    for row in data:
+        cancelled ="cancelled" in row['class']
+        row = row.text.strip().splitlines()[0]
+        cur_date = pd.to_datetime(dates[d] + row[0:8])
+        if cur_date < prev_date: d += 1
+        res.append([
+                   pd.to_datetime(dates[d] + row[0:8]),
+                   row[9: row.find('Dep.')-1],
+                   row[row.find('Dep.')+5:],
+                   cancelled
+                   ])
+        prev_date = pd.to_datetime(dates[d] + row[0:8])
+    df = pd.DataFrame(res, columns=['sale_time', 'Address', 'deposit_in_$k,000', 'cancelled'])
+    adrs = df["Address"].str.split(",", expand = True) 
+    df.Address = adrs[:][0].str.replace(".","")
+    df.City = adrs[:][1]
+    df.zip = adrs[:][2]
+    df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')', '')
+    df['source'] = url
+    
+    return df
+
 from math import radians, sin, cos, acos
 def distance(lat1, lon1, lat2 = 38.870393, lon2=-76.878019):
-    lat1 = radians(lat1)
-    lon1 = radians(lon1)
-    lat2 = radians(lat2)
-    lon2 = radians(lon2)
-    dist = 6371.01 * acos(sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2)*cos(lon1 - lon2))
+    try:
+        lat1 = radians(float(lat1))
+        lon1 = radians(float(lon1))
+        lat2 = radians(lat2)
+        lon2 = radians(lon2)
+        dist = 6371.01 * acos(sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2)*cos(lon1 - lon2))
     #convert from km to m
-    dist = dist * 0.621371
+        dist = dist * 0.621371
+    except:
+        dist = np.nan
     return dist
 
 redfin = redfin()
 hw = auction_hw()
-homes = pd.concat([redfin,hw], sort =False)
+ac = auction_ac()
+homes = pd.concat([redfin,hw, ac], sort =False)
+#homes['living_area'] = np.nan
+
+homes = homes.query("property_type !='Townhouse' & property_type != 'Condo/Co-op' & property_type != 'Vacant Land' & property_type != 'Multi-Family (2-4 Unit)'") 
+
+meta = pd.DataFrame()
+comps = pd.DataFrame()
+for r in tqdm(range(len(homes))):
+    address = homes.iloc[r]['address']
+    #if pd.to_numeric(df.iloc[r]['living_area']) >0: continue
+    #tmp = find_comps(address)
     
+    try: 
+        tmp = sdat.property_metadata(address)
+    except:
+        tmp=pd.DataFrame()
+    if not tmp.empty:
+        tmp['input_string'] = address
+        #tmp[0]['median_price'] = tmp[1]['price'].median()
+        #tmp[0]['max_price'] = tmp[1]['price'].max()
+        #tmp[1]['input_string']  = address
+        meta = pd.concat([meta, tmp],join='outer', ignore_index=True, sort =False)
+        #comps = pd.concat([comps, tmp[1]])
+
+homes = pd.merge(left=homes, right = meta,left_on='address', right_on='input_string', how='left', suffixes=("_search",""))
+homes['dist_kj'] = homes.apply(lambda x: distance(x.lat, x.lon), axis=1)
+
+
+try:
+    leads = pd.read_csv("data/leads.csv")
+except:
+    leads = pd.DataFrame()
+homes = pd.concat([leads, homes],join='outer', ignore_index=True, sort =False)
+try:
+    print(sum(homes.address_search.duplicated()))
+    homes = homes.drop_duplicates(subset=['address_search', 'sale_time'], keep='last')
+except:
+    print("error in drop duplicates")
+fName = "data/leads.csv"
+homes.to_csv(fName, index=False)    
